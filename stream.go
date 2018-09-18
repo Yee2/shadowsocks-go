@@ -21,18 +21,18 @@ func (p *stream) Shadow(rw io.ReadWriter) (io.ReadWriter, error) {
 }
 
 func (p *stream) Pack(dst []byte, data []byte) error {
-	if len(data)< p.IVLength{
+	if len(data) < p.IVLength {
 		return errors.New("error")
 	}
-	p.NewEncrypter(p.block,data[:p.IVLength]).XORKeyStream(dst,data[p.IVLength:])
+	p.NewEncrypter(p.block, data[:p.IVLength]).XORKeyStream(dst, data[p.IVLength:])
 	return nil
 }
 
 func (p *stream) Unpack(dst []byte, data []byte) error {
-	if len(data)< p.IVLength{
+	if len(data) < p.IVLength {
 		return errors.New("error")
 	}
-	p.NewDecrypter(p.block,data[:p.IVLength]).XORKeyStream(dst,data[p.IVLength:])
+	p.NewDecrypter(p.block, data[:p.IVLength]).XORKeyStream(dst, data[p.IVLength:])
 	return nil
 }
 
@@ -46,8 +46,8 @@ type streamTunnel struct {
 
 func (c *streamTunnel) Read(p []byte) (n int, err error) {
 	if c.Decrypter == nil {
-		iv, err := GetIV(c.ReadWriter, c.model.IVLength)
-		if err != nil {
+		iv := make([]byte, c.model.IVLength)
+		if _, err := io.ReadFull(c.ReadWriter, iv); err != nil {
 			return 0, err
 		}
 		c.Decrypter = c.model.NewDecrypter(c.model.block, iv)

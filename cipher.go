@@ -3,18 +3,16 @@ package shadowsocks
 import (
 	"crypto/cipher"
 	"errors"
-	"io"
 	"crypto/md5"
 )
 
 var CipherNotSupported = errors.New("cipher not supported")
 var AlreadyRegistered = errors.New("already registered")
-var StreamCiphers = make([]StreamCipher, 0)
-var AEADCiphers = make([]AEADCipher, 0)
+var streamCiphers = make([]StreamCipher, 0)
+var aeadCiphers = make([]AEADCipher, 0)
 
 type StreamCipher interface {
 	Name() string
-	//Alias() []string
 	IVLength() int
 	KeySize() int
 	Cipher(key []byte) (cipher.Block, error)
@@ -24,23 +22,23 @@ type StreamCipher interface {
 
 // 注册一个 stram 加密方式
 func RegisterStream(streamCipher StreamCipher) error {
-	for i := range StreamCiphers {
-		if streamCipher == StreamCiphers[i] || StreamCiphers[i].Name() == streamCipher.Name() {
+	for i := range streamCiphers {
+		if streamCipher == streamCiphers[i] || streamCiphers[i].Name() == streamCipher.Name() {
 			return AlreadyRegistered
 		}
 	}
-	StreamCiphers = append(StreamCiphers, streamCipher)
+	streamCiphers = append(streamCiphers, streamCipher)
 	return nil
 }
 
 // 注册一个 AEAD 加密方式
 func RegisterAEAD(Cipher AEADCipher) error {
-	for i := range AEADCiphers {
-		if Cipher == AEADCiphers[i] || AEADCiphers[i].Name() == Cipher.Name() {
+	for i := range aeadCiphers {
+		if Cipher == aeadCiphers[i] || aeadCiphers[i].Name() == Cipher.Name() {
 			return AlreadyRegistered
 		}
 	}
-	AEADCiphers = append(AEADCiphers, Cipher)
+	aeadCiphers = append(aeadCiphers, Cipher)
 	return nil
 }
 
@@ -65,9 +63,9 @@ func NewTunnel(method, password string) (Tunnel, error) {
 
 func newTunnelStream(method, password string) (Tunnel, error) {
 	var cipher StreamCipher
-	for i := range StreamCiphers {
-		if StreamCiphers[i].Name() == method {
-			cipher = StreamCiphers[i]
+	for i := range streamCiphers {
+		if streamCiphers[i].Name() == method {
+			cipher = streamCiphers[i]
 		}
 	}
 	if cipher == nil {
@@ -97,9 +95,9 @@ type AEADCipher interface {
 
 func newTunnelAEAD(method, password string) (Tunnel, error) {
 	var c AEADCipher
-	for i := range AEADCiphers {
-		if AEADCiphers[i].Name() == method {
-			c = AEADCiphers[i]
+	for i := range aeadCiphers {
+		if aeadCiphers[i].Name() == method {
+			c = aeadCiphers[i]
 		}
 	}
 	if c == nil {
@@ -119,22 +117,13 @@ func newTunnelAEAD(method, password string) (Tunnel, error) {
 // 获取支持的加密方式
 func Supported() []string {
 	list := make([]string,0)
-	for i := range StreamCiphers{
-		list=append(list,StreamCiphers[i].Name())
+	for i := range streamCiphers{
+		list=append(list,streamCiphers[i].Name())
 	}
-	for i := range AEADCiphers{
-		list=append(list,AEADCiphers[i].Name())
+	for i := range aeadCiphers{
+		list=append(list,aeadCiphers[i].Name())
 	}
 	return list
-}
-
-func GetIV(reader io.Reader, size int) ([]byte, error) {
-	bs := make([]byte, size)
-	_, err := io.ReadFull(reader, bs)
-	if err != nil {
-		return []byte{}, err
-	}
-	return bs, nil
 }
 
 // from https://github.com/shadowsocks/go-shadowsocks2/blob/ef4b562095a69750509f82d3f82fc8e6dad50c6e/core/cipher.go
