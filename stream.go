@@ -3,8 +3,8 @@ package shadowsocks
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"io"
+	"crypto/rand"
 )
 
 // 实现 Tunnel 接口
@@ -16,26 +16,12 @@ type stream struct {
 }
 
 func (p *stream) Shadow(rw io.ReadWriter) (io.ReadWriter, error) {
-	iv := make([]byte,p.IVLength)
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, err
-	}
-	rw.Write(iv)
-	streamEn := p.NewEncrypter(p.block, iv)
-	return &streamTunnel{ReadWriter:rw,Encrypter: streamEn,initialize: func(c *streamTunnel) error{
-		iv, err := GetIV(rw, p.IVLength)
-		if err != nil {
-			return err
-		}
-		c.Decrypter = p.NewDecrypter(p.block, iv)
-		return nil
-	},
-	}, nil
+	return &streamTunnel{model:p,ReadWriter:rw}, nil
 }
 
 // 实现RW接口
 type streamTunnel struct {
-	initialize func(*streamTunnel)error
+	model *stream
 	ReadWriter io.ReadWriter
 	Decrypter  cipher.Stream
 	Encrypter  cipher.Stream
@@ -43,10 +29,11 @@ type streamTunnel struct {
 
 func (c *streamTunnel) Read(p []byte) (n int, err error) {
 	if c.Decrypter == nil{
-		err = c.initialize(c)
+		iv, err := GetIV(c.ReadWriter, c.model.IVLength)
 		if err != nil{
 			return 0,err
 		}
+		c.Decrypter = c.model.NewDecrypter(c.model.block, iv)
 	}
 	n, err = c.ReadWriter.Read(p)
 	if err != nil {
@@ -56,6 +43,16 @@ func (c *streamTunnel) Read(p []byte) (n int, err error) {
 	return
 }
 func (c *streamTunnel) Write(p []byte) (n int, err error) {
+	if c.Encrypter==nil{
+		iv := make([]byte,c.model.IVLength)
+		if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+			return 0, err
+		}
+		if _, err := c.ReadWriter.Write(iv); err != nil{
+			return 0,nil
+		}
+		c.Encrypter = c.model.NewEncrypter(c.model.block, iv)
+	}
 	c.Encrypter.XORKeyStream(p, p)
 	return c.ReadWriter.Write(p)
 }

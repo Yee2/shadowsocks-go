@@ -3,11 +3,11 @@ package shadowsocks
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha1"
 	"errors"
 	"golang.org/x/crypto/hkdf"
 	"io"
+	"crypto/rand"
 )
 
 const MaxPayload = 0x3FFF
@@ -22,51 +22,18 @@ type aead struct {
 }
 
 func (p *aead) Shadow(rw io.ReadWriter) (_ io.ReadWriter, e error) {
-
-	salt := make([]byte, p.SaltSize)
-	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		return nil, err
-	}
-	_, err := rw.Write(salt)
-	if err != nil {
-		return nil, err
-	}
-	key := make([]byte, p.KeySize)
-	hkdfSHA1(p.key, salt, []byte("ss-subkey"), key)
-	AEADServer, err := p.NewAEAD(key)
-	if err != nil {
-		return nil, err
-	}
-
 	return &aeadTunnel{
+		model:      p,
 		ReadWriter: rw,
-		initialize: func(c *aeadTunnel) error {
-
-			salt := make([]byte, p.SaltSize)
-			_, err := io.ReadFull(rw, salt)
-			if err != nil {
-				return err
-			}
-
-			key := make([]byte, p.KeySize)
-			hkdfSHA1(p.key, salt, []byte("ss-subkey"), key)
-			c.RAEAD, err = p.NewAEAD(key)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-		WAEAD:      AEADServer,
 		RNonce:     make([]byte, p.NonceSize),
 		WNonce:     make([]byte, p.NonceSize),
-		buffer:     make([]byte, 2+AEADServer.Overhead()+MaxPayload+AEADServer.Overhead()),
 		cache:      make([]byte, 0),
 	}, nil
 }
 
 type aeadTunnel struct {
 	io.ReadWriter
-	initialize func(tunnel *aeadTunnel)error
+	model  *aead
 	RAEAD  cipher.AEAD
 	WAEAD  cipher.AEAD
 	RNonce []byte //这是一个小端模式的计算器
@@ -77,12 +44,6 @@ type aeadTunnel struct {
 }
 
 func (c *aeadTunnel) Open(dst, ciphertext []byte) ([]byte, error) {
-	if c.RAEAD ==nil{
-		err := c.initialize(c)
-		if err != nil{
-			return nil,err
-		}
-	}
 	defer func() {
 		increment(c.RNonce)
 	}()
@@ -97,12 +58,23 @@ func (c *aeadTunnel) Seal(dst, plaintext []byte) []byte {
 }
 
 func (c *aeadTunnel) Read(p []byte) (n int, err error) {
-	if c.RAEAD==nil{
-		err = c.initialize(c)
-		if err != nil{
-			return 0,err
+	if c.RAEAD == nil {
+		salt := make([]byte, c.model.SaltSize)
+		_, err := io.ReadFull(c.ReadWriter, salt)
+		if err != nil {
+			return 0, err
+		}
+		subKey := make([]byte, c.model.KeySize)
+		hkdfSHA1(c.model.key, salt, []byte("ss-subkey"), subKey)
+		c.RAEAD, err = c.model.NewAEAD(subKey)
+		if err != nil {
+			return 0, err
+		}
+		if c.buffer == nil {
+			c.buffer = make([]byte, 2+c.RAEAD.Overhead()+MaxPayload+c.RAEAD.Overhead())
 		}
 	}
+
 	if len(c.cache) > 0 {
 		n = copy(p, c.cache)
 		c.cache = c.cache[n:]
@@ -140,6 +112,24 @@ func (c *aeadTunnel) Read(p []byte) (n int, err error) {
 	return nn + n, nil
 }
 func (c *aeadTunnel) Write(p []byte) (n int, err error) {
+	if c.WAEAD == nil {
+		salt := make([]byte, c.model.SaltSize)
+		if _, err = io.ReadFull(rand.Reader, salt); err != nil {
+			return 0, err
+		}
+		if _, err = c.ReadWriter.Write(salt); err != nil {
+			return 0, err
+		}
+		key := make([]byte, c.model.KeySize)
+		hkdfSHA1(c.model.key, salt, []byte("ss-subkey"), key)
+		if c.WAEAD, err = c.model.NewAEAD(key); err != nil {
+			return 0, err
+		}
+		if c.buffer == nil {
+			c.buffer = make([]byte, 2+c.WAEAD.Overhead()+MaxPayload+c.WAEAD.Overhead())
+		}
+	}
+
 	var end, nn int
 	size := len(p)
 	for i := 0; i*MaxPayload < size; i++ {
