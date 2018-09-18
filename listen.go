@@ -2,7 +2,6 @@ package shadowsocks
 
 import (
 	"context"
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
@@ -67,28 +66,4 @@ func ParseTarget(r io.Reader) (address string, e error) {
 	default:
 		return "", errors.New("error")
 	}
-}
-
-func GetIV(reader io.Reader, size int) ([]byte, error) {
-	bs := make([]byte, size)
-	_, err := io.ReadFull(reader, bs)
-	if err != nil {
-		return []byte{}, err
-	}
-	return bs, nil
-}
-
-// from https://github.com/shadowsocks/go-shadowsocks2/blob/ef4b562095a69750509f82d3f82fc8e6dad50c6e/core/cipher.go
-// key-derivation function from original Shadowsocks
-func kdf(password string, keyLen int) []byte {
-	var b, prev []byte
-	h := md5.New()
-	for len(b) < keyLen {
-		h.Write(prev)
-		h.Write([]byte(password))
-		b = h.Sum(b)
-		prev = b[len(b)-h.Size():]
-		h.Reset()
-	}
-	return b[:keyLen]
 }

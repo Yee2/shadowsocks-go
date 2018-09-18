@@ -10,7 +10,7 @@
     )
 
     func main() {
-    	tunnel,err := shadowsocks.NewAES256GCM("123456")
+    	tunnel, err := shadowsocks.NewTunnel("aes-256-gcm","123456")
     	if err != nil{
     		log.Fatalln(err)
     	}
