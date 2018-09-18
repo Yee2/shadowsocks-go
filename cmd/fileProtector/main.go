@@ -14,7 +14,7 @@ func main() {
 		Description: "用来保护你的文件的",
 	}
 	app.Version = "201809"
-	app.Flags = []cli.Flag{
+	flags := []cli.Flag{
 		&cli.StringFlag{
 			Name:  "in",
 			Value: "",
@@ -39,32 +39,41 @@ func main() {
 	app.Commands = []*cli.Command{
 		{
 			Name:   "encrypt",
-			Action: encrypt,
+			Action: encryptAction,
+			Flags:  flags,
 		},
 		{
 			Name:   "decrypt",
-			Action: decrypt,
+			Action: decryptAction,
+			Flags:  flags,
 		},
 	}
 	err := app.Run(os.Args)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func encrypt(ctx *cli.Context) (err error) {
-	t, err := shadowsocks.NewTunnel(ctx.String("method"), ctx.String("key"))
+func encryptAction(ctx *cli.Context) (err error) {
+	return encrypt(
+		ctx.String("method"),
+		ctx.String("key"),
+		ctx.String("in"),
+		ctx.String("out"),
+	)
+}
+func encrypt(method, key, in, out string) (err error) {
+	t, err := shadowsocks.NewTunnel(method, key)
 	if err != nil {
 		return err
 	}
-	r, err := os.Open(ctx.String("in"))
+	r, err := os.Open(in)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	out := ctx.String("out")
 	if out == "" {
-		out = ctx.String("in") + ".encrypted"
+		out = in + ".encrypted"
 	}
 	w, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -83,19 +92,27 @@ func encrypt(ctx *cli.Context) (err error) {
 	return nil
 }
 
-func decrypt(ctx *cli.Context) (err error) {
-	t, err := shadowsocks.NewTunnel(ctx.String("method"), ctx.String("key"))
+func decryptAction(ctx *cli.Context) (err error) {
+	return decrypt(
+		ctx.String("method"),
+		ctx.String("key"),
+		ctx.String("in"),
+		ctx.String("out"),
+	)
+}
+
+func decrypt(method, key, in, out string) (err error) {
+	t, err := shadowsocks.NewTunnel(method,key)
 	if err != nil {
 		return err
 	}
-	r, err := os.Open(ctx.String("in"))
+	r, err := os.Open(in)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	out := ctx.String("out")
 	if out == "" {
-		out = ctx.String("in") + ".decrypted"
+		out = in + ".decrypted"
 	}
 	w, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
