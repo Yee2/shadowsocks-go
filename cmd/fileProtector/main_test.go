@@ -20,12 +20,12 @@ func TestM(t *testing.T) {
 	encrypted:= filepath.Join(dir,"fileProtector.encrypted")
 	decrypted:= filepath.Join(dir,"fileProtector.decrypted")
 
-	err = encrypt("aes-256-gcm",key,origin,encrypted)
+	err = encrypt("chacha20-ietf-poly1305",key,origin,encrypted)
 	if err != nil{
 		t.Fatal(err)
 	}
 
-	err = decrypt("aes-256-gcm",key,encrypted,decrypted)
+	err = decrypt("chacha20-ietf-poly1305",key,encrypted,decrypted)
 	if err != nil{
 		t.Fatal(err)
 	}
