@@ -2,7 +2,6 @@ package shadowsocks
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -30,6 +29,21 @@ func Handle(rw io.ReadWriter) (e error) {
 	}()
 	<-ctx.Done()
 	return nil
+}
+func Payload(data []byte) ([]byte) {
+	switch data[0] {
+	case 0x01:
+		// IPv4
+		return data[1+4+2:]
+	case 0x03:
+		// 高位在前 低位在后
+		return data[1+2+(int(data[1])<<8)|int(data[2])+2:]
+	case 0x04:
+		// IPv6
+		return data[1+16+2:]
+	default:
+		return data
+	}
 }
 
 // shadowsocks协议实现，从r里面读取目标地址
@@ -64,6 +78,6 @@ func ParseTarget(r io.Reader) (address string, e error) {
 		}
 		return fmt.Sprintf("%s:%d", net.IP(buffer[0:16]), uint16(buffer[16])<<8|uint16(buffer[17])), nil
 	default:
-		return "", errors.New("error")
+		return "", fmt.Errorf("unknown address type:0x%X", buffer[0])
 	}
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"gopkg.in/urfave/cli.v2"
-	"os"
-	"io"
-	"github.com/Yee2/shadowsocks-go"
 	"fmt"
+	"github.com/Yee2/shadowsocks-go"
+	"gopkg.in/urfave/cli.v2"
+	"io"
+	"os"
 )
 
 func main() {
@@ -102,7 +102,7 @@ func decryptAction(ctx *cli.Context) (err error) {
 }
 
 func decrypt(method, key, in, out string) (err error) {
-	t, err := shadowsocks.NewTunnel(method,key)
+	t, err := shadowsocks.NewTunnel(method, key)
 	if err != nil {
 		return err
 	}

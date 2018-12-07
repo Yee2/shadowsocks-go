@@ -3,15 +3,17 @@ package shadowsocks
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha1"
-	"errors"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/hkdf"
 	"io"
-	"crypto/rand"
 )
 
 const MaxPayload = 0x3FFF
+
 var zero [128]byte
+
 type aead struct {
 	key []byte
 	KeySize,
@@ -30,32 +32,34 @@ func (p *aead) Shadow(rw io.ReadWriter) (_ io.ReadWriter, e error) {
 		cache:      make([]byte, 0),
 	}, nil
 }
-func (p *aead) Unpack(dst []byte, data []byte) error {
-	if len(data)<p.SaltSize{
-		return errors.New("error")
+func (p *aead) Unpack(dst []byte, data []byte) (int, error) {
+	if len(data) < p.SaltSize {
+		return 0, errors.Errorf("the ciphertext length is too short(%d bytes)",len(data))
 	}
 	subKey := make([]byte, p.KeySize)
 	hkdfSHA1(p.key, data[:p.SaltSize], []byte("ss-subkey"), subKey)
-	AEAD,err := p.NewAEAD(subKey)
-	if err != nil{
-		return err
+	AEAD, err := p.NewAEAD(subKey)
+	if err != nil {
+		return 0, err
 	}
-	AEAD.Open(dst,zero[:p.NonceSize],data[p.SaltSize:],nil)
-	return nil
+	d, err := AEAD.Open(dst, zero[:p.NonceSize], data[p.SaltSize:], nil)
+	return len(d), err
 }
-func (p *aead) Pack(dst []byte, data []byte) error {
-	if len(data)<p.SaltSize{
-		return errors.New("error")
+func (p *aead) Pack(dst []byte, data []byte) (int, error) {
+	if _, err := io.ReadFull(rand.Reader, dst[:p.SaltSize]); err != nil {
+		return 0, err
 	}
 	subKey := make([]byte, p.KeySize)
-	hkdfSHA1(p.key, data[:p.SaltSize], []byte("ss-subkey"), subKey)
-	AEAD,err := p.NewAEAD(subKey)
-	if err != nil{
-		return err
+	hkdfSHA1(p.key, dst[:p.SaltSize], []byte("ss-subkey"), subKey)
+	AEAD, err := p.NewAEAD(subKey)
+	if err != nil {
+		return 0, err
 	}
-	AEAD.Seal(dst,zero[:p.NonceSize],data[p.SaltSize:],nil)
-	return nil
+	result := AEAD.Seal(nil,zero[:p.NonceSize], data, nil)
+	copy(dst[p.SaltSize:],result)
+	return len(result) + p.SaltSize, nil
 }
+
 type aeadTunnel struct {
 	io.ReadWriter
 	model  *aead

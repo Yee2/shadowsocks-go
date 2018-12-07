@@ -2,8 +2,8 @@ package shadowsocks
 
 import (
 	"crypto/cipher"
-	"errors"
 	"crypto/md5"
+	"errors"
 )
 
 var CipherNotSupported = errors.New("cipher not supported")
@@ -116,12 +116,12 @@ func newTunnelAEAD(method, password string) (Tunnel, error) {
 
 // 获取支持的加密方式
 func Supported() []string {
-	list := make([]string,0)
-	for i := range streamCiphers{
-		list=append(list,streamCiphers[i].Name())
+	list := make([]string, 0)
+	for i := range streamCiphers {
+		list = append(list, streamCiphers[i].Name())
 	}
-	for i := range aeadCiphers{
-		list=append(list,aeadCiphers[i].Name())
+	for i := range aeadCiphers {
+		list = append(list, aeadCiphers[i].Name())
 	}
 	return list
 }

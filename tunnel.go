@@ -9,7 +9,7 @@ type Tunnel interface {
 	Shadow(rw io.ReadWriter) (io.ReadWriter, error)
 	//解包数据
 	// 参考 https://shadowsocks.org/en/spec/AEAD-Ciphers.html
-	Unpack(dst []byte,data[]byte)error
+	Unpack(dst []byte, data []byte) (int,error)
 	// 打包数据
-	Pack(dst []byte,data[]byte)error
+	Pack(dst []byte, data []byte)  (int,error)
 }

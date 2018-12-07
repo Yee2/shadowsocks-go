@@ -13,39 +13,32 @@
  aes-192-gcm
  aes-256-gcm
  chacha20-ietf-poly1305
- */
+*/
 package shadowsocks
 
 import (
-	"fmt"
-	"crypto/cipher"
 	"crypto/aes"
+	"crypto/cipher"
+	"fmt"
 	"github.com/enceve/crypto/camellia"
-	"sync"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-var (
-	once = &sync.Once{}
-)
-
 func init() {
-	once.Do(func() {
-		RegisterStream(&streamAES{"aes", 16, "cfb"})
-		RegisterStream(&streamAES{"aes", 24, "cfb"})
-		RegisterStream(&streamAES{"aes", 32, "cfb"})
-		RegisterStream(&streamAES{"aes", 16, "ctr"})
-		RegisterStream(&streamAES{"aes", 24, "ctr"})
-		RegisterStream(&streamAES{"aes", 32, "ctr"})
-		RegisterStream(&streamAES{"camellia", 16, "cfb"})
-		RegisterStream(&streamAES{"camellia", 24, "cfb"})
-		RegisterStream(&streamAES{"camellia", 32, "cfb"})
+	RegisterStream(&streamAES{"aes", 16, "cfb"})
+	RegisterStream(&streamAES{"aes", 24, "cfb"})
+	RegisterStream(&streamAES{"aes", 32, "cfb"})
+	RegisterStream(&streamAES{"aes", 16, "ctr"})
+	RegisterStream(&streamAES{"aes", 24, "ctr"})
+	RegisterStream(&streamAES{"aes", 32, "ctr"})
+	RegisterStream(&streamAES{"camellia", 16, "cfb"})
+	RegisterStream(&streamAES{"camellia", 24, "cfb"})
+	RegisterStream(&streamAES{"camellia", 32, "cfb"})
 
-		RegisterAEAD(&aesgcm{keySize: 16, saltSize: 16})
-		RegisterAEAD(&aesgcm{keySize: 24, saltSize: 24})
-		RegisterAEAD(&aesgcm{keySize: 32, saltSize: 32})
-		RegisterAEAD(&chacha20{})
-	})
+	RegisterAEAD(&aesgcm{keySize: 16, saltSize: 16})
+	RegisterAEAD(&aesgcm{keySize: 24, saltSize: 24})
+	RegisterAEAD(&aesgcm{keySize: 32, saltSize: 32})
+	RegisterAEAD(&chacha20{})
 }
 
 type streamAES struct {

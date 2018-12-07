@@ -3,9 +3,9 @@ package shadowsocks
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"io"
 	"crypto/rand"
 	"errors"
+	"io"
 )
 
 // 实现 Tunnel 接口
@@ -20,20 +20,22 @@ func (p *stream) Shadow(rw io.ReadWriter) (io.ReadWriter, error) {
 	return &streamTunnel{model: p, ReadWriter: rw}, nil
 }
 
-func (p *stream) Pack(dst []byte, data []byte) error {
-	if len(data) < p.IVLength {
-		return errors.New("error")
+func (p *stream) Pack(dst []byte, data []byte) (int, error) {
+
+	if _, err := io.ReadFull(rand.Reader, dst[:p.IVLength]); err != nil {
+		return 0, err
 	}
-	p.NewEncrypter(p.block, data[:p.IVLength]).XORKeyStream(dst, data[p.IVLength:])
-	return nil
+
+	p.NewEncrypter(p.block, dst[:p.IVLength]).XORKeyStream(dst[p.IVLength:], data)
+	return len(data) + p.IVLength, nil
 }
 
-func (p *stream) Unpack(dst []byte, data []byte) error {
+func (p *stream) Unpack(dst []byte, data []byte) (int, error) {
 	if len(data) < p.IVLength {
-		return errors.New("error")
+		return 0, errors.New("error")
 	}
 	p.NewDecrypter(p.block, data[:p.IVLength]).XORKeyStream(dst, data[p.IVLength:])
-	return nil
+	return len(data) - p.IVLength, nil
 }
 
 // 实现RW接口
