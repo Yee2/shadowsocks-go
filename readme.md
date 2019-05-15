@@ -14,6 +14,7 @@
 * aes-128-gcm
 * aes-192-gcm
 * aes-256-gcm
+* chacha20-ietf-poly1305
 
 ## 加密文件例子
 
