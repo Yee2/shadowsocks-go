@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/Yee2/logf"
 	"github.com/Yee2/shadowsocks-go"
 	"github.com/pkg/errors"
 	"log"
@@ -23,7 +22,7 @@ func main() {
 	go func() {
 		err := UDPserver(tunnel)
 		if err != nil {
-			logf.Logf("%s", err)
+			log.Println(err)
 		}
 	}()
 	listener, err := net.Listen("tcp", "0.0.0.0:8366")
@@ -46,7 +45,7 @@ func main() {
 			}
 			err = shadowsocks.Handle(surface)
 			if err != nil {
-				logf.Logf("%s", err)
+				log.Println(err)
 			}
 		}()
 
@@ -116,7 +115,7 @@ func UDPserver(tunnel shadowsocks.Tunnel) (error) {
 				default:
 					n, _, err := listener.ReadFromUDP(buffer[:])
 					if err != nil {
-						logf.Logf("error:%s\n", err)
+						log.Printf("error:%s\n", err)
 						cancel()
 					}
 					wb := bytes.NewBuffer([]byte{})

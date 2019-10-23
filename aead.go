@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/hkdf"
 	"io"
+	"sync"
 )
 
 const MaxPayload = 0x3FFF
@@ -20,7 +21,8 @@ type aead struct {
 	SaltSize,
 	NonceSize,
 	TagSize int
-	NewAEAD func(key []byte) (cipher.AEAD, error)
+	NewAEAD    func(key []byte) (cipher.AEAD, error)
+	subKeyPool *sync.Pool
 }
 
 func (p *aead) Shadow(rw io.ReadWriter) (_ io.ReadWriter, e error) {
@@ -34,11 +36,18 @@ func (p *aead) Shadow(rw io.ReadWriter) (_ io.ReadWriter, e error) {
 }
 func (p *aead) Unpack(dst []byte, data []byte) (int, error) {
 	if len(data) < p.SaltSize {
-		return 0, errors.Errorf("the ciphertext length is too short(%d bytes)",len(data))
+		return 0, errors.Errorf("the ciphertext length is too short(%d bytes)", len(data))
 	}
-	subKey := make([]byte, p.KeySize)
-	hkdfSHA1(p.key, data[:p.SaltSize], []byte("ss-subkey"), subKey)
-	AEAD, err := p.NewAEAD(subKey)
+	if p.subKeyPool == nil {
+		p.subKeyPool = &sync.Pool{New: func() interface{} {
+			buffer := make([]byte, p.KeySize)
+			return &buffer
+		}}
+	}
+	subKey := p.subKeyPool.Get().(*[]byte)
+	defer p.subKeyPool.Put(subKey)
+	hkdfSHA1(p.key, data[:p.SaltSize], []byte("ss-subkey"), *subKey)
+	AEAD, err := p.NewAEAD(*subKey)
 	if err != nil {
 		return 0, err
 	}
@@ -49,14 +58,21 @@ func (p *aead) Pack(dst []byte, data []byte) (int, error) {
 	if _, err := io.ReadFull(rand.Reader, dst[:p.SaltSize]); err != nil {
 		return 0, err
 	}
-	subKey := make([]byte, p.KeySize)
-	hkdfSHA1(p.key, dst[:p.SaltSize], []byte("ss-subkey"), subKey)
-	AEAD, err := p.NewAEAD(subKey)
+	if p.subKeyPool == nil {
+		p.subKeyPool = &sync.Pool{New: func() interface{} {
+			buffer := make([]byte, p.KeySize)
+			return &buffer
+		}}
+	}
+	subKey := p.subKeyPool.Get().(*[]byte)
+	defer p.subKeyPool.Put(subKey)
+	hkdfSHA1(p.key, dst[:p.SaltSize], []byte("ss-subkey"), *subKey)
+	AEAD, err := p.NewAEAD(*subKey)
 	if err != nil {
 		return 0, err
 	}
-	result := AEAD.Seal(nil,zero[:p.NonceSize], data, nil)
-	copy(dst[p.SaltSize:],result)
+	result := AEAD.Seal(nil, zero[:p.NonceSize], data, nil)
+	copy(dst[p.SaltSize:], result)
 	return len(result) + p.SaltSize, nil
 }
 
@@ -69,7 +85,6 @@ type aeadTunnel struct {
 	WNonce []byte //这是一个小端模式的计算器
 	buffer []byte
 	cache  []byte
-	subKey []byte
 }
 
 func (c *aeadTunnel) Open(dst, ciphertext []byte) ([]byte, error) {
