@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Yee2/shadowsocks-go"
-	"gopkg.in/urfave/cli.v2"
+	"github.com/urfave/cli/v2"
 	"io"
 	"os"
 )

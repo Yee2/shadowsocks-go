@@ -30,7 +30,7 @@ func Handle(rw io.ReadWriter) (e error) {
 	<-ctx.Done()
 	return nil
 }
-func Payload(data []byte) ([]byte) {
+func Payload(data []byte) []byte {
 	switch data[0] {
 	case 0x01:
 		// IPv4

@@ -87,11 +87,11 @@ type aeadTunnel struct {
 	cache  []byte
 }
 
-func (c *aeadTunnel) Open(dst, ciphertext []byte) ([]byte, error) {
+func (c *aeadTunnel) Open(dst, cipherText []byte) ([]byte, error) {
 	defer func() {
 		increment(c.RNonce)
 	}()
-	return c.RAEAD.Open(dst, c.RNonce, ciphertext, nil)
+	return c.RAEAD.Open(dst, c.RNonce, cipherText, nil)
 }
 
 func (c *aeadTunnel) Seal(dst, plaintext []byte) []byte {

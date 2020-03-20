@@ -5,54 +5,116 @@ import (
 	"context"
 	"fmt"
 	"github.com/Yee2/shadowsocks-go"
+	"github.com/alexflint/go-arg"
 	"github.com/pkg/errors"
 	"log"
 	"net"
+	"os"
+	"os/exec"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
 var timeout = time.Minute * 10
 
+var args struct {
+	Server     string `arg:"-s" default:"[::]"`
+	Port       int    `arg:"-p" default:"8388"`
+	Method     string `arg:"-m" default:"aes-256-gcm"`
+	Key        string `arg:"-k"`
+	Plugin     string
+	PluginOpts string `arg:"--plugin-opts"`
+	Verbose    bool   `arg:"-v" help:"Verbose mode"`
+}
+
 func main() {
-	tunnel, err := shadowsocks.NewTunnel("aes-256-gcm", "123456")
+	arg.MustParse(&args)
+	tunnel, err := shadowsocks.NewTunnel(args.Method, args.Key)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	go func() {
-		err := UDPserver(tunnel)
-		if err != nil {
+		if err := UDPserver(tunnel); err != nil {
 			log.Println(err)
 		}
 	}()
-	listener, err := net.Listen("tcp", "0.0.0.0:8366")
-	if err != nil {
-		log.Fatalln("绑定端口失败:", err)
-	}
-	defer listener.Close()
-	for {
-		conn, err := listener.Accept()
+	var (
+		listener net.Listener
+	)
+	ctx, cancel := context.WithCancel(context.Background())
+	if args.Plugin != "" {
+		listener, err = net.Listen("tcp", "localhost:0")
 		if err != nil {
-			println(err)
-			continue
+			log.Fatalln("绑定端口失败:", err)
+		}
+		cmd := exec.Command(args.Plugin)
+		if args.Verbose {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SS_REMOTE_HOST=%s", args.Server))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SS_REMOTE_PORT=%d", args.Port))
+		cmd.Env = append(cmd.Env, "SS_LOCAL_HOST=127.0.0.1")
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SS_LOCAL_PORT=%d", listener.Addr().(*net.TCPAddr).Port))
+		if args.PluginOpts != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("SS_PLUGIN_OPTIONS=%s", args.PluginOpts))
+		}
+		if err := cmd.Start(); err != nil {
+			log.Fatalln("运行插件失败:", err)
 		}
 		go func() {
-			defer conn.Close()
-			surface, err := tunnel.Shadow(conn)
+			cmd.Wait()
+			cancel()
+		}()
+		go func() {
+			<-ctx.Done()
+			cmd.Process.Kill()
+		}()
+	} else {
+		listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", args.Server, args.Port))
+		if err != nil {
+			log.Fatalln("绑定端口失败:", err)
+		}
+	}
+	defer listener.Close()
+	go func() {
+
+		for {
+			conn, err := listener.Accept()
 			if err != nil {
 				println(err)
-				return
+				continue
 			}
-			err = shadowsocks.Handle(surface)
-			if err != nil {
-				log.Println(err)
-			}
-		}()
+			go func() {
+				defer conn.Close()
+				surface, err := tunnel.Shadow(conn)
+				if err != nil {
+					println(err)
+					return
+				}
+				err = shadowsocks.Handle(surface)
+				if err != nil {
+					log.Println(err)
+				}
+			}()
 
+		}
+
+	}()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-signals:
+	case <-ctx.Done():
 	}
+	log.Println("正在关闭 ss-server.")
+	cancel()
 }
 
-func UDPserver(tunnel shadowsocks.Tunnel) (error) {
+func UDPserver(tunnel shadowsocks.Tunnel) error {
 	var buffer [1024]byte
 	addr, err := net.ResolveUDPAddr("udp", ":8366")
 	if err != nil {
@@ -126,14 +188,14 @@ func UDPserver(tunnel shadowsocks.Tunnel) (error) {
 						wb.WriteByte(byte(server.Port >> 8))
 						wb.WriteByte(byte(server.Port))
 						wb.Write(buffer[:n])
-					}else if server.IP.To16() != nil{
+					} else if server.IP.To16() != nil {
 						wb.WriteByte(0x04)
 						wb.Write(server.IP.To16())
 						// 高位在前 低位在后
 						wb.WriteByte(byte(server.Port >> 8))
 						wb.WriteByte(byte(server.Port))
 						wb.Write(buffer[:n])
-					}else{
+					} else {
 						cancel()
 						return
 					}

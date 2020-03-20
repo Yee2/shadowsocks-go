@@ -20,7 +20,7 @@ type StreamCipher interface {
 	Encrypter(block cipher.Block, iv []byte) cipher.Stream
 }
 
-// 注册一个 stram 加密方式
+// 注册一个 stream 加密方式
 func RegisterStream(streamCipher StreamCipher) error {
 	for i := range streamCiphers {
 		if streamCipher == streamCiphers[i] || streamCiphers[i].Name() == streamCipher.Name() {
@@ -55,7 +55,7 @@ func NewTunnel(method, password string) (Tunnel, error) {
 	if err == nil {
 		return t, err
 	}
-	if err != nil && err != CipherNotSupported {
+	if err != CipherNotSupported {
 		return nil, err
 	}
 	return nil, CipherNotSupported
