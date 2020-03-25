@@ -28,6 +28,11 @@ var args struct {
 	PluginOpts string `arg:"--plugin-opts"`
 	Verbose    bool   `arg:"-v" help:"Verbose mode"`
 }
+var bytesBufferPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 1024))
+	},
+}
 
 func main() {
 	arg.MustParse(&args)
@@ -36,7 +41,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	go func() {
-		if err := UDPserver(tunnel); err != nil {
+		if err := udpServer(context.TODO(), tunnel); err != nil {
 			log.Println(err)
 		}
 	}()
@@ -114,15 +119,15 @@ func main() {
 	cancel()
 }
 
-func UDPserver(tunnel shadowsocks.Tunnel) error {
+func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
 	var buffer [1024]byte
-	addr, err := net.ResolveUDPAddr("udp", ":8366")
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", args.Server, args.Port))
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing address error:%w", err)
 	}
 	pc, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("an error occurred on the listening port:%w", err)
 	}
 	table := make(map[string]*net.UDPConn, 0)
 	mu := &sync.Mutex{}
@@ -137,7 +142,7 @@ func UDPserver(tunnel shadowsocks.Tunnel) error {
 		n, err = tunnel.Unpack(buffer[:0], buffer[:n])
 		target, err := shadowsocks.ParseTarget(bytes.NewBuffer(buffer[:n]))
 		if err != nil {
-			fmt.Println(errors.Wrap(err, "Parsing address error"))
+			fmt.Println(errors.Wrap(err, "parsing address error"))
 			continue
 		}
 
@@ -150,21 +155,23 @@ func UDPserver(tunnel shadowsocks.Tunnel) error {
 			listener.WriteToUDP(shadowsocks.Payload(buffer[:n]), server)
 			continue
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		subCtx, cancel := context.WithCancel(ctx)
 		listener, err := net.ListenUDP("udp", &net.UDPAddr{Port: 0})
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
+		// 注册到会话表里面
 		mu.Lock()
 		table[server.String()] = listener
 		mu.Unlock()
+		// 会话过期或者出现错误，删除
 		go func(ctx context.Context) {
 			<-ctx.Done()
 			mu.Lock()
 			delete(table, server.String())
 			mu.Unlock()
-		}(ctx)
+		}(subCtx)
 		listener.WriteToUDP(shadowsocks.Payload(buffer[:n]), server)
 		go func(ctx context.Context) {
 			timer, _ := context.WithTimeout(ctx, timeout)
@@ -180,7 +187,7 @@ func UDPserver(tunnel shadowsocks.Tunnel) error {
 						log.Printf("error:%s\n", err)
 						cancel()
 					}
-					wb := bytes.NewBuffer([]byte{})
+					wb := bytesBufferPool.Get().(*bytes.Buffer)
 					if server.IP.To4() != nil {
 						wb.WriteByte(0x01)
 						wb.Write(server.IP.To4())
@@ -197,14 +204,18 @@ func UDPserver(tunnel shadowsocks.Tunnel) error {
 						wb.Write(buffer[:n])
 					} else {
 						cancel()
+						wb.Reset()
+						bytesBufferPool.Put(wb)
 						return
 					}
 					n, _ = tunnel.Pack(buffer[:], wb.Bytes())
 					pc.WriteToUDP(buffer[:n], client)
+					wb.Reset()
+					bytesBufferPool.Put(wb)
 					timer, _ = context.WithTimeout(ctx, timeout)
 				}
 			}
-		}(ctx)
+		}(subCtx)
 
 	}
 	return nil
