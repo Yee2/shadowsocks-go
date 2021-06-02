@@ -5,8 +5,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/Yee2/shadowsocks-go"
+	_ "github.com/Yee2/shadowsocks-go/ciphers"
 	"github.com/alexflint/go-arg"
-	"github.com/pkg/errors"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -100,7 +101,7 @@ func main() {
 					println(err)
 					return
 				}
-				err = shadowsocks.Handle(surface)
+				err = handle(surface)
 				if err != nil {
 					log.Println(err)
 				}
@@ -140,9 +141,9 @@ func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
 			continue
 		}
 		n, err = tunnel.Unpack(buffer[:0], buffer[:n])
-		target, err := shadowsocks.ParseTarget(bytes.NewBuffer(buffer[:n]))
+		target, err := parseTarget(bytes.NewBuffer(buffer[:n]))
 		if err != nil {
-			fmt.Println(errors.Wrap(err, "parsing address error"))
+			fmt.Println("parsing address error", err)
 			continue
 		}
 
@@ -152,7 +153,7 @@ func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
 			continue
 		}
 		if listener, ok := table[server.String()]; ok {
-			listener.WriteToUDP(shadowsocks.Payload(buffer[:n]), server)
+			listener.WriteToUDP(payload(buffer[:n]), server)
 			continue
 		}
 		subCtx, cancel := context.WithCancel(ctx)
@@ -172,7 +173,7 @@ func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
 			delete(table, server.String())
 			mu.Unlock()
 		}(subCtx)
-		listener.WriteToUDP(shadowsocks.Payload(buffer[:n]), server)
+		listener.WriteToUDP(payload(buffer[:n]), server)
 		go func(ctx context.Context) {
 			timer, _ := context.WithTimeout(ctx, timeout)
 			var buffer [1024]byte
@@ -219,4 +220,79 @@ func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
 
 	}
 	return nil
+}
+
+// shadowsocks协议实现，在代理服务器和目标之间构建起通道
+func handle(rw io.ReadWriter) (e error) {
+	target, err := parseTarget(rw)
+	if err != nil {
+		return err
+	}
+	remote, err := net.Dial("tcp", target)
+	if err != nil {
+		return err
+	}
+	defer remote.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		io.Copy(rw, remote)
+		cancel()
+	}()
+	go func() {
+		io.Copy(remote, rw)
+		cancel()
+	}()
+	<-ctx.Done()
+	return nil
+}
+func payload(data []byte) []byte {
+	switch data[0] {
+	case 0x01:
+		// IPv4
+		return data[1+4+2:]
+	case 0x03:
+		// 高位在前 低位在后
+		return data[1+2+(int(data[1])<<8)|int(data[2])+2:]
+	case 0x04:
+		// IPv6
+		return data[1+16+2:]
+	default:
+		return data
+	}
+}
+
+// shadowsocks协议实现，从r里面读取目标地址
+func parseTarget(r io.Reader) (address string, e error) {
+	var buffer [0xff + 2]byte
+	_, e = r.Read(buffer[0:1])
+	if e != nil {
+		return
+	}
+	switch buffer[0] {
+	case 0x01:
+		_, e = io.ReadFull(r, buffer[0:6])
+		if e != nil {
+			return
+		}
+		return fmt.Sprintf("%s:%d", net.IP(buffer[0:4]), uint16(buffer[4])<<8|uint16(buffer[5])), nil
+	case 0x03:
+		_, e = io.ReadFull(r, buffer[0:1])
+		if e != nil {
+			return
+		}
+		length := buffer[0]
+		_, e = io.ReadFull(r, buffer[0:length+2])
+		if e != nil {
+			return
+		}
+		return fmt.Sprintf("%s:%d", buffer[0:length], uint16(buffer[length])<<8|uint16(buffer[length+1])), nil
+	case 0x04:
+		_, e = io.ReadFull(r, buffer[0:18])
+		if e != nil {
+			return
+		}
+		return fmt.Sprintf("%s:%d", net.IP(buffer[0:16]), uint16(buffer[16])<<8|uint16(buffer[17])), nil
+	default:
+		return "", fmt.Errorf("unknown address type:0x%X", buffer[0])
+	}
 }

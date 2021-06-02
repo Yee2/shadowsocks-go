@@ -5,11 +5,8 @@ import (
 )
 
 type Tunnel interface {
-	// 获取一个解密后的通道，读写将自动加密和解密
-	Shadow(rw io.ReadWriter) (io.ReadWriter, error)
-	//解包数据
-	// 参考 https://shadowsocks.org/en/spec/AEAD-Ciphers.html
-	Unpack(dst []byte, data []byte) (int,error)
-	// 打包数据
-	Pack(dst []byte, data []byte)  (int,error)
+	// Shadow Get a decrypted channel, read and write will be automatically encrypted and decrypted
+	Shadow(rw io.ReadWriteCloser) (io.ReadWriteCloser, error)
+	Unpack(dst []byte, data []byte) (int, error)
+	Pack(dst []byte, data []byte) (int, error)
 }
