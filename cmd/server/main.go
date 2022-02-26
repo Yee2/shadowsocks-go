@@ -5,7 +5,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/Yee2/shadowsocks-go"
-	_ "github.com/Yee2/shadowsocks-go/ciphers"
+
+	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"github.com/alexflint/go-arg"
 	"io"
 	"log"
@@ -120,7 +121,7 @@ func main() {
 	cancel()
 }
 
-func udpServer(ctx context.Context, tunnel shadowsocks.Tunnel) error {
+func udpServer(ctx context.Context, tunnel core.Tunnel) error {
 	var buffer [1024]byte
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", args.Server, args.Port))
 	if err != nil {

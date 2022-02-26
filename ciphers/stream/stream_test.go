@@ -1,13 +1,13 @@
-package ciphers
+package stream
 
 import (
-	"github.com/Yee2/shadowsocks-go"
+	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"testing"
 )
 
 func TestStreamImpl(t *testing.T) {
 	var i interface{} = &stream{}
-	if _, ok := i.(shadowsocks.Tunnel); !ok {
+	if _, ok := i.(core.Tunnel); !ok {
 		t.Failed()
 	}
 }

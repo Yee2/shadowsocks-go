@@ -3,18 +3,14 @@ package shadowsocks
 import (
 	"errors"
 	"fmt"
+	"github.com/Yee2/shadowsocks-go/ciphers/core"
 )
 
 var CipherNotSupported = errors.New("cipher not supported")
 var AlreadyRegistered = errors.New("already registered")
-var providers = make([]TunnelProvider, 0)
+var providers = make([]core.TunnelProvider, 0)
 
-type TunnelProvider interface {
-	Name() string
-	New(password string) Tunnel
-}
-
-func Register(p TunnelProvider) error {
+func Register(p core.TunnelProvider) error {
 	for i := range providers {
 		if p.Name() == providers[i].Name() {
 			return AlreadyRegistered
@@ -25,7 +21,7 @@ func Register(p TunnelProvider) error {
 }
 
 // NewTunnel make a new shadowsocks channel
-func NewTunnel(method, password string) (Tunnel, error) {
+func NewTunnel(method, password string) (core.Tunnel, error) {
 	for _, p := range providers {
 		if p.Name() == method {
 			return p.New(password), nil

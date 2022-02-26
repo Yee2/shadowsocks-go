@@ -1,10 +1,11 @@
-package ciphers
+package stream
 
 import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"io"
 )
 
@@ -49,7 +50,7 @@ type streamTunnel struct {
 
 func (c *streamTunnel) Close() error {
 	if c.closed {
-		return ClosedErr
+		return core.ClosedErr
 	}
 	return c.pipe.Close()
 }
@@ -71,7 +72,7 @@ func (c *streamTunnel) Read(p []byte) (n int, err error) {
 }
 func (c *streamTunnel) Write(p []byte) (n int, err error) {
 	if c.closed {
-		return 0, ClosedErr
+		return 0, core.ClosedErr
 	}
 	if c.encryptor == nil {
 		iv := make([]byte, c.model.IVLength)

@@ -1,4 +1,4 @@
-package ciphers
+package associated
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"golang.org/x/crypto/hkdf"
 	"io"
 	"sync"
@@ -25,7 +26,6 @@ var chunk = &sync.Pool{New: func() interface{} {
 }}
 
 var zero [128]byte
-var ClosedErr = errors.New("closed")
 
 type aead struct {
 	key []byte
@@ -94,7 +94,7 @@ func (c *aeadTunnel) Close() error {
 	buffers.Put(c.cache)
 	c.cache = nil
 	c.closed = true
-	return ClosedErr
+	return core.ClosedErr
 }
 
 func (c *aeadTunnel) Open(dst, cipherText []byte) ([]byte, error) {

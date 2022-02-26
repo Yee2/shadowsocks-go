@@ -1,9 +1,8 @@
-package ciphers
+package shadowsocks
 
 import (
 	"bytes"
 	"errors"
-	"github.com/Yee2/shadowsocks-go"
 	"io"
 	"math/rand"
 	"testing"
@@ -23,10 +22,11 @@ func TestAllPass(t *testing.T) {
 	var password [16]byte
 	var data [1000]byte
 	buf := bytes.NewBuffer(k20[:0])
-	for _, m := range shadowsocks.Supported() {
+	for _, m := range Supported() {
+		t.Logf("test method:%s", m)
 		RandStringRunes(password[:])
 		buf.Reset()
-		tunnel, err := shadowsocks.NewTunnel(m, string(password[:]))
+		tunnel, err := NewTunnel(m, string(password[:]))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,6 +61,9 @@ func BenchmarkAES256GCM(b *testing.B) {
 func BenchmarkCC20(b *testing.B) {
 	benchmarkSS(b, "chacha20-ietf-poly1305")
 }
+func BenchmarkSalsa20(b *testing.B) {
+	benchmarkSS(b, "salsa20")
+}
 func BenchmarkCC20Ietf(b *testing.B) {
 	benchmarkSS(b, "chacha20")
 }
@@ -77,7 +80,7 @@ func benchmarkSS(t *testing.B, m string) {
 	RandStringRunes(data[:])
 	t.ResetTimer()
 	RandStringRunes(password[:])
-	tunnel, err := shadowsocks.NewTunnel(m, string(password[:]))
+	tunnel, err := NewTunnel(m, string(password[:]))
 	if err != nil {
 		t.Fatal(err)
 	}
