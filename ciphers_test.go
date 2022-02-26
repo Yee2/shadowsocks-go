@@ -55,6 +55,38 @@ func TestAllPass(t *testing.T) {
 	}
 
 }
+
+func TestAllUDP(t *testing.T) {
+	var password [16]byte
+	var data [4096]byte
+	// 如果复用 decode，会出现 crypto/cipher: invalid buffer overlap
+	var decode [4096]byte
+	var encode [4096]byte
+	for _, m := range Supported() {
+		t.Logf("test method:%s", m)
+		RandStringRunes(password[:])
+		tunnel, err := NewTunnel(m, string(password[:]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 10; i++ {
+			size := rand.Intn(4000) + 1
+			RandStringRunes(data[:size])
+			n, err := tunnel.Pack(encode[:], data[:size])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := tunnel.Unpack(decode[:], encode[:n]); err != nil {
+				t.Fatal(err)
+			}
+			if string(decode[:size]) != string(data[:size]) {
+				t.Failed()
+			}
+		}
+	}
+
+}
+
 func BenchmarkAES256GCM(b *testing.B) {
 	benchmarkSS(b, "aes-256-gcm")
 }
