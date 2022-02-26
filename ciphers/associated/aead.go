@@ -171,10 +171,8 @@ func (c *aeadTunnel) Write(p []byte) (n int, err error) {
 		salt := make([]byte, c.model.SaltSize)
 		if _, err = io.ReadFull(rand.Reader, salt); err != nil {
 			return 0, fmt.Errorf("failed to make a new salt:%w size:%d", err, c.model.SaltSize)
-		} else if n, err = c.pipe.Write(salt); err != nil {
+		} else if _, err = c.pipe.Write(salt); err != nil {
 			return 0, fmt.Errorf("send salt bytes error:%w", err)
-		} else if n != c.model.SaltSize {
-			panic(fmt.Errorf("runtime error"))
 		}
 		key := make([]byte, c.model.KeySize)
 		hkdfSHA1(c.model.key, salt, []byte("ss-subkey"), key)
