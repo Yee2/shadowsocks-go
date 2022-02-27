@@ -4,7 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Yee2/shadowsocks-go/ciphers/core"
+	"io"
 )
+
+type Closeable struct {
+	io.ReadWriter
+}
+
+func (c *Closeable) Close() error {
+	return nil
+}
 
 var CipherNotSupported = errors.New("cipher not supported")
 var AlreadyRegistered = errors.New("already registered")

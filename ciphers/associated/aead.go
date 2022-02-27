@@ -89,12 +89,12 @@ type aeadTunnel struct {
 
 func (c *aeadTunnel) Close() error {
 	if c.closed {
-		return fmt.Errorf("closed")
+		return core.ClosedErr
 	}
 	buffers.Put(c.cache)
 	c.cache = nil
 	c.closed = true
-	return core.ClosedErr
+	return c.pipe.Close()
 }
 
 func (c *aeadTunnel) Open(dst, cipherText []byte) ([]byte, error) {
@@ -112,6 +112,7 @@ func (c *aeadTunnel) Seal(dst, plaintext []byte) []byte {
 }
 
 func (c *aeadTunnel) nextChunk() (err error) {
+	// first get payload length
 	data := chunk.Get().([]byte)[0 : 2+c.RAEAD.Overhead()]
 	defer chunk.Put(data)
 	if _, err = io.ReadFull(c.pipe, data); err != nil {
@@ -125,6 +126,7 @@ func (c *aeadTunnel) nextChunk() (err error) {
 	}
 	size := (int(head[0])<<8 + int(head[1])) & MaxPayload
 
+	// read the payload
 	_, err = io.ReadFull(c.pipe, data[0:size+c.RAEAD.Overhead()])
 	if err != nil {
 		return
@@ -161,7 +163,9 @@ func (c *aeadTunnel) Read(p []byte) (n int, err error) {
 		}
 		p = p[nn:]
 		err = c.nextChunk()
-		if err != nil {
+		if errors.Is(err, io.EOF) && n > 0 {
+			return n, nil
+		} else if err != nil {
 			return n, err
 		}
 	}
