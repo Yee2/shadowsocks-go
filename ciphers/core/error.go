@@ -2,4 +2,4 @@ package core
 
 import "errors"
 
-var ClosedErr = errors.New("closed")
+var ClosedErr = errors.New("shadow has been closed")

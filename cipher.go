@@ -7,6 +7,8 @@ import (
 	"io"
 )
 
+type Tunnel = core.Tunnel
+
 type Closeable struct {
 	io.ReadWriter
 }
@@ -30,7 +32,7 @@ func Register(p core.TunnelProvider) error {
 }
 
 // NewTunnel make a new shadowsocks channel
-func NewTunnel(method, password string) (core.Tunnel, error) {
+func NewTunnel(method, password string) (Tunnel, error) {
 	for _, p := range providers {
 		if p.Name() == method {
 			return p.New(password), nil
