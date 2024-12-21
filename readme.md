@@ -19,7 +19,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/Yee2/shadowsocks-go"
+	"shadowsocks"
 	"log"
 )
 

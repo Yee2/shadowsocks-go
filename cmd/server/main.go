@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/Yee2/shadowsocks-go"
+	"shadowsocks"
 
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"github.com/alexflint/go-arg"
 	"io"
 	"log"
@@ -14,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"shadowsocks/ciphers/core"
 	"sync"
 	"syscall"
 	"time"

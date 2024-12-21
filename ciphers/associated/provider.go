@@ -1,7 +1,7 @@
 package associated
 
 import (
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
+	"shadowsocks/ciphers/core"
 	"sync"
 )
 

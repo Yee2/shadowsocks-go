@@ -1,26 +1,23 @@
 package shadowsocks
 
 import (
-	"github.com/Yee2/shadowsocks-go/ciphers/associated"
-	"github.com/Yee2/shadowsocks-go/ciphers/stream"
-	"math/rand"
-	"time"
+	"shadowsocks/ciphers/associated"
+	"shadowsocks/ciphers/stream"
 )
 
 func init() {
-	rand.Seed(time.Now().Unix())
-	Register(associated.AES128GCM)
-	Register(associated.AES192GCM)
-	Register(associated.AES256GCM)
-	Register(associated.Chacha20IetfPoly1305)
-	Register(stream.AES128CFB)
-	Register(stream.AES192CFB)
-	Register(stream.AES256CFB)
-	Register(stream.AES128CTR)
-	Register(stream.AES192CTR)
-	Register(stream.AES256CTR)
-	Register(stream.Camellia128CFB)
-	Register(stream.Camellia192CFB)
-	Register(stream.Camellia256CFB)
-	Register(stream.Salsa20)
+	_ = Register(associated.AES128GCM)
+	_ = Register(associated.AES192GCM)
+	_ = Register(associated.AES256GCM)
+	_ = Register(associated.Chacha20IetfPoly1305)
+	_ = Register(stream.AES128CFB)
+	_ = Register(stream.AES192CFB)
+	_ = Register(stream.AES256CFB)
+	_ = Register(stream.AES128CTR)
+	_ = Register(stream.AES192CTR)
+	_ = Register(stream.AES256CTR)
+	_ = Register(stream.Camellia128CFB)
+	_ = Register(stream.Camellia192CFB)
+	_ = Register(stream.Camellia256CFB)
+	_ = Register(stream.Salsa20)
 }

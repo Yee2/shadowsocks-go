@@ -3,8 +3,8 @@ package shadowsocks
 import (
 	"errors"
 	"fmt"
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"io"
+	"shadowsocks/ciphers/core"
 )
 
 type Tunnel = core.Tunnel

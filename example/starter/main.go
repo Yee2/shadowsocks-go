@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
-	"github.com/Yee2/shadowsocks-go"
 	"log"
+	"shadowsocks"
 )
 
 func main() {

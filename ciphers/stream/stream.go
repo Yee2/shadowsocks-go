@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"io"
+	"shadowsocks/ciphers/core"
 )
 
 // 实现 Tunnel 接口

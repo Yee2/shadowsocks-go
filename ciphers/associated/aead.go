@@ -7,9 +7,9 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
 	"golang.org/x/crypto/hkdf"
 	"io"
+	"shadowsocks/ciphers/core"
 	"sync"
 )
 

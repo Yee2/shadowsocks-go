@@ -2,7 +2,7 @@ package stream
 
 import (
 	"crypto/cipher"
-	"github.com/Yee2/shadowsocks-go/ciphers/core"
+	"shadowsocks/ciphers/core"
 )
 
 func NewStream(cipher Cipher) core.TunnelProvider {
